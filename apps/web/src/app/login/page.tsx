@@ -22,7 +22,7 @@ export default function Login() {
     }
     else
     {
-        userRouter.push("/dashboard");
+        userRouter.push("/Dashboard");
     }
 };
 
