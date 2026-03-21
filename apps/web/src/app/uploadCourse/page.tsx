@@ -4,6 +4,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { useState, useEffect, } from "react";
 import { User } from "@supabase/supabase-js";
+import { th } from "zod/locales";
 
 export default function UploadCourse() {
 
@@ -11,8 +12,8 @@ export default function UploadCourse() {
     const [courseName, setCourseName] = useState("");
     const [courseDescription, setCourseDescription] = useState("");
     const [courseContent, setCourseContent] = useState("");
-    const [thumbnailUrl, setThumbnailUrl] = useState("");
     const [price, setPrice] = useState("");
+    const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
 
     useEffect(() => {
         const getUser = async () => {
@@ -25,16 +26,39 @@ export default function UploadCourse() {
     }, []);
 
     const handleSubmit = async () => {
+
+        if(!thumbnailFile) {
+            alert("Please select a thumbnail image for the course.");
+            return;
+        }
         if (!user) {
             alert("User not authenticated");
             return;
         }
+        const filePath = `thumbnails/${user.id}/${Date.now()}-${thumbnailFile.name}`;
+
+        const {error : uploadError} = await supabase.storage.from("Thumbnail-bucket").upload(filePath, thumbnailFile);
+        if(uploadError) {
+            alert("Failed to upload thumbnail. Please try again:" + uploadError.message);
+        }
+        const { data: publicUrlData } = supabase.storage
+            .from("Thumbnail-bucket")
+            .getPublicUrl(filePath);
+
+        const thumbnailUrl = publicUrlData.publicUrl;
+
+        if (!thumbnailFile.type.startsWith("image/")) 
+            {
+                alert("Only image files allowed");
+                return;
+            }   
+
         const { error } = await supabase.from("courses").insert([
         {
             courseName,
             description: courseDescription,
             topics_covered: courseContent,
-            thumbnail: thumbnailUrl,
+            thumbnail : thumbnailUrl,
             price: Number(price),
         }
         ]);
@@ -46,11 +70,11 @@ export default function UploadCourse() {
             setCourseName("");
             setCourseDescription("");
             setCourseContent("");
-            setThumbnailUrl("");
+            
             setPrice("");
         }
-    };
 
+    };
 
     return (
         <div>
@@ -75,10 +99,13 @@ export default function UploadCourse() {
                 onChange={(e) => setCourseContent(e.target.value)}
             />
             <input
-                type="text"
-                placeholder="Thumbnail URL"
-                value={thumbnailUrl}
-                onChange={(e) => setThumbnailUrl(e.target.value)}
+                type="file"
+                placeholder="Thumbnail"
+                onChange={(e) => {
+                                if (e.target.files && e.target.files[0]) {
+                                    setThumbnailFile(e.target.files[0]);
+                                }
+                                }}
             />
             <input
                 type="text"
