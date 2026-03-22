@@ -4,7 +4,8 @@ import { supabase } from "@/lib/supabaseClient";
 import { useState, useEffect } from "react";
 import { User } from "@supabase/supabase-js";
 import Link from "next/link";
-import { set } from "zod";
+
+
 
 export default function Dashboard() {
 
@@ -67,6 +68,25 @@ export default function Dashboard() {
         fetchCourses();
     }, []);    
 
+    useEffect(() => {
+        const fetchEnrollment = async () => {
+            if (!user) return;
+
+            const { data, error } = await supabase
+                .from("Enrolled")
+                .select("course_id")
+                .eq("user_id", user.id);
+
+            if (error) {
+                alert("Cannot fetch Enrollment:" + error.message);
+            } else {
+                setenrolled(data.map((e) => e.course_id));
+            }
+        };
+
+        fetchEnrollment();
+    }, [user]);
+        
     const handleEnrollment = async(courseId: string) => {
         const { data: userData } = await supabase.auth.getUser();
         const currentUser = userData?.user; 
@@ -91,6 +111,8 @@ export default function Dashboard() {
 
 
 
+
+
     return (
         <div>
             <h1>Welcome to your Dashboard, {user?.user_metadata?.username}!</h1>
@@ -105,8 +127,25 @@ export default function Dashboard() {
                 <h4 className="text-lg font-semibold">{course.topics_covered}</h4>
                 <h4 className="text-lg font-semibold">{course.description}</h4>
                 <p>₹{course.price}</p>
-                <button className="bg-blue-500 text-white px-4 py-2 rounded mt-2" 
-                onClick={() => handleEnrollment(course.id)}>Enroll</button>
+                {enrolled.includes(course.id) ? (
+                    <div className="flex flex-row gap-2">
+                    <button className="bg-green-500 text-white px-4 py-2 rounded mt-2" disabled>
+                         Enrolled ✓
+                    </button>
+                    <Link href={`/course/${course.id}`}>
+                    <button className="bg-purple-500 text-white px-4 py-2 rounded mt-2">
+                        Go to course
+                    </button>
+                    </Link>
+                    </div>
+                ):(
+                    <button className="bg-blue-500 text-white px-4 py-2 rounded mt-2"
+                    onClick={() => handleEnrollment(course.id)}
+                    >
+                        Enroll
+                    </button>
+                )
+                }
                 </div>
             ))}
             </div>
@@ -115,3 +154,5 @@ export default function Dashboard() {
             
 
 }
+
+
