@@ -1,10 +1,9 @@
 "use client";
 
 import { supabase } from "@/lib/supabaseClient";
-import { useState, useEffect } from "react";
-import { User } from "@supabase/supabase-js";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 interface Course {
   id: string;
@@ -16,116 +15,82 @@ interface Course {
   created_at: string;
 }
 
-interface EnrolledCourse {
-  course_id: string;
-  user_id: string;
-  created_at: string;
-}
-
 export default function Dashboard() {
   const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
-  const [status, setStatus] = useState<string | null>(null);
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [enrolled, setEnrolled] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [enrolledCount, setEnrolledCount] = useState(0);
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    const getUserAndStatus = async () => {
-      try {
-        const { data } = await supabase.auth.getUser();
-        const currentUser = data.user;
-        
-        if (!currentUser) {
-          router.push("/login");
-          return;
-        }
-
-        setUser(currentUser);
-
-        const { data: reqData } = await supabase
-          .from("instructor_requests")
-          .select("status")
-          .eq("user_id", currentUser.id)
-          .single();
-
-        setStatus(reqData?.status || null);
-      } catch (error) {
+  const { data: user } = useQuery({
+    queryKey: ["user"],
+    queryFn: async () => {
+      const { data } = await supabase.auth.getUser();
+      if (!data.user) {
+        router.push("/login");
+        return null;
       }
-    };
+      return data.user;
+    },
+  });
 
-    getUserAndStatus();
-  }, [router]);
+  const userId = user?.id;
 
-  useEffect(() => {
-    const fetchCourses = async () => {
-      try {
-        const { data, error } = await supabase.from("courses").select("*");
-        if (error) throw error;
-        setCourses(data || []);
-      } catch (error) {
-      }
-    };
+  const { data: status } = useQuery({
+    queryKey: ["status", userId],
+    queryFn: async () => {
+      if (!userId) return null;
+      const { data } = await supabase
+        .from("instructor_requests")
+        .select("status")
+        .eq("user_id", userId)
+        .single();
+      return data?.status || null;
+    },
+    enabled: !!userId,
+  });
 
-    fetchCourses();
-  }, []);
+  const { data: courses = [], isLoading } = useQuery<Course[]>({
+    queryKey: ["courses"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("courses").select("*");
+      if (error) throw error;
+      return data || [];
+    },
+  });
 
-  useEffect(() => {
-    const fetchEnrollment = async () => {
-      if (!user) return;
+  const { data: enrolled = [] } = useQuery<string[]>({
+    queryKey: ["enrollment", userId],
+    queryFn: async () => {
+      if (!userId) return [];
+      const { data, error } = await supabase
+        .from("Enrolled")
+        .select("course_id")
+        .eq("user_id", userId);
+      if (error) throw error;
+      return (data || []).map((e: any) => e.course_id);
+    },
+    enabled: !!userId,
+  });
 
-      try {
-        const { data, error } = await supabase
-          .from("Enrolled")
-          .select("course_id")
-          .eq("user_id", user.id);
-
-        if (error) throw error;
-
-        const enrolledIds = (data || []).map((e: any) => e.course_id);
-        setEnrolled(enrolledIds);
-        setEnrolledCount(enrolledIds.length);
-      } catch (error) {
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchEnrollment();
-  }, [user]);
-
-  const handleEnrollment = async (courseId: string) => {
-    if (!user) {
-      alert("Please log in first");
-      return;
-    }
-
-    try {
+  const enrollMutation = useMutation({
+    mutationFn: async (courseId: string) => {
+      if (!userId) throw new Error("No user");
       const { error } = await supabase.from("Enrolled").insert({
-        user_id: user.id,
+        user_id: userId,
         course_id: courseId,
       });
-
       if (error) throw error;
-
-      setEnrolled([...enrolled, courseId]);
-      setEnrolledCount(enrolledCount + 1);
-      alert("✅ Successfully enrolled in the course!");
-    } catch (error) {
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["enrollment"] });
+    },
+    onError: () => {
       alert("Failed to enroll in the course");
-    }
-  };
+    },
+  });
 
   const handleLogout = async () => {
-    try {
-      await supabase.auth.signOut();
-      setUser(null);
-      router.push("/");
-      alert("✅ Logged out successfully!");
-    } catch (error) {
-      alert("Failed to logout");
-    }
+    await supabase.auth.signOut();
+    queryClient.clear();
+    router.push("/");
   };
 
   return (
@@ -138,7 +103,10 @@ export default function Dashboard() {
           <div className="flex items-center gap-8 font-medium">
             <Link href="/" className="hover:text-[#FF7D44] transition">Home</Link>
             <Link href="/Enrollment" className="hover:text-[#FF7D44] transition">My Courses</Link>
-            <button onClick={handleLogout} className="text-sm font-bold text-red-500 hover:text-red-700 transition">
+            <button
+              onClick={handleLogout}
+              className="text-sm font-bold text-red-500 hover:text-red-700 transition"
+            >
               Logout
             </button>
           </div>
@@ -158,7 +126,7 @@ export default function Dashboard() {
           <div className="flex gap-6">
             <div className="bg-white rounded-2xl p-6 shadow-sm text-center">
               <p className="text-sm text-gray-600 mb-2">Enrolled</p>
-              <p className="text-4xl font-black text-[#1EBBA3]">{enrolledCount}</p>
+              <p className="text-4xl font-black text-[#1EBBA3]">{enrolled.length}</p>
             </div>
             <div className="bg-white rounded-2xl p-6 shadow-sm text-center">
               <p className="text-sm text-gray-600 mb-2">Available</p>
@@ -171,7 +139,9 @@ export default function Dashboard() {
           {status === null && (
             <div className="bg-white rounded-2xl p-6 shadow-sm border-l-4 border-[#FF7D44]">
               <h3 className="text-2xl font-bold mb-2">Want to teach?</h3>
-              <p className="text-gray-600 mb-4">Apply to become an instructor and share your knowledge with thousands of learners</p>
+              <p className="text-gray-600 mb-4">
+                Apply to become an instructor and share your knowledge with thousands of learners
+              </p>
               <Link href="/InsForm">
                 <button className="bg-[#FF7D44] hover:bg-[#e56a2e] text-white px-8 py-3 rounded-full font-bold transition shadow-md">
                   Apply Now →
@@ -183,7 +153,9 @@ export default function Dashboard() {
           {status === "pending" && (
             <div className="bg-yellow-50 rounded-2xl p-6 border-l-4 border-yellow-500">
               <h3 className="text-2xl font-bold text-yellow-900 mb-2">Application Pending ⏳</h3>
-              <p className="text-yellow-800">We're reviewing your instructor application. This usually takes 2-3 business days.</p>
+              <p className="text-yellow-800">
+                We're reviewing your instructor application. This usually takes 2-3 business days.
+              </p>
             </div>
           )}
 
@@ -204,12 +176,14 @@ export default function Dashboard() {
 
         <div>
           <div className="mb-8">
-            <span className="bg-[#FF7D44] text-white px-3 py-1 rounded-full text-xs font-bold uppercase">All Courses</span>
+            <span className="bg-[#FF7D44] text-white px-3 py-1 rounded-full text-xs font-bold uppercase">
+              All Courses
+            </span>
             <h2 className="text-4xl font-black mt-4">Explore & Enroll</h2>
             <p className="text-gray-600 mt-2">Browse our complete catalog and start learning today</p>
           </div>
 
-          {loading ? (
+          {isLoading ? (
             <div className="text-center py-20">
               <div className="inline-block animate-spin text-4xl">⏳</div>
               <p className="text-gray-400 mt-4">Loading courses...</p>
@@ -221,8 +195,15 @@ export default function Dashboard() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {courses.map((course) => (
-                <div key={course.id} className="bg-white rounded-[2rem] overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-300 group">
-                  <img className="aspect-video bg-[#FDF0E9] flex items-center justify-center text-6xl group-hover:scale-110 transition duration-300 overflow-hidden" src={course.thumbnail || "📚"} alt={course.courseName} />
+                <div
+                  key={course.id}
+                  className="bg-white rounded-[2rem] overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-300 group"
+                >
+                  <img
+                    className="w-full aspect-video object-cover group-hover:scale-110 transition duration-300"
+                    src={course.thumbnail || "https://placehold.co/600x340?text=📚"}
+                    alt={course.courseName}
+                  />
 
                   <div className="p-6">
                     <h3 className="text-xl font-extrabold mb-2 line-clamp-2 text-[#1A1A1A]">
@@ -234,18 +215,22 @@ export default function Dashboard() {
 
                     {course.topics_covered && (
                       <div className="flex flex-wrap gap-2 mb-4">
-                        {course.topics_covered.split(",").slice(0, 2).map((topic, idx) => (
-                          <span key={idx} className="bg-[#FDF0E9] text-[#FF7D44] text-xs px-3 py-1 rounded-full font-semibold">
-                            {topic.trim()}
-                          </span>
-                        ))}
+                        {course.topics_covered
+                          .split(",")
+                          .slice(0, 2)
+                          .map((topic, idx) => (
+                            <span
+                              key={idx}
+                              className="bg-[#FDF0E9] text-[#FF7D44] text-xs px-3 py-1 rounded-full font-semibold"
+                            >
+                              {topic.trim()}
+                            </span>
+                          ))}
                       </div>
                     )}
 
                     <div className="flex justify-between items-center pt-4 border-t border-gray-100 gap-3">
-                      <span className="text-2xl font-black text-[#FF7D44]">
-                        ${course.price}
-                      </span>
+                      <span className="text-2xl font-black text-[#FF7D44]">${course.price}</span>
                       <div className="flex gap-2">
                         {enrolled.includes(course.id) ? (
                           <Link href={`/course/${course.id}`} className="flex-1">
@@ -256,10 +241,11 @@ export default function Dashboard() {
                         ) : (
                           <>
                             <button
-                              onClick={() => handleEnrollment(course.id)}
-                              className="flex-1 bg-[#1EBBA3] hover:bg-[#189a86] text-white px-4 py-2 rounded-full font-bold text-sm transition"
+                              onClick={() => enrollMutation.mutate(course.id)}
+                              disabled={enrollMutation.isPending}
+                              className="flex-1 bg-[#1EBBA3] hover:bg-[#189a86] disabled:opacity-60 text-white px-4 py-2 rounded-full font-bold text-sm transition"
                             >
-                              Enroll
+                              {enrollMutation.isPending ? "..." : "Enroll"}
                             </button>
                             <Link href={`/coursedetails/${course.id}`}>
                               <button className="bg-gray-100 hover:bg-gray-200 text-[#FF7D44] px-4 py-2 rounded-full font-bold text-sm transition">
@@ -278,7 +264,7 @@ export default function Dashboard() {
         </div>
       </section>
 
-      <footer className="bg-linear-to-b from-slate-900 to-black text-white py-12 mt-20">
+      <footer className="bg-gradient-to-b from-slate-900 to-black text-white py-12 mt-20">
         <div className="max-w-7xl mx-auto px-6 text-center">
           <p className="text-gray-400">&copy; 2026 LMSZONE. Keep learning, keep growing! 🚀</p>
         </div>

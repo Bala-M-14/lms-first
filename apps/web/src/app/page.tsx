@@ -179,12 +179,13 @@ export default function Home() {
             <span className="text-[#FF7D44]">-Amazing</span>
           </h1>
           <p className="text-gray-500 text-lg max-w-md mb-10 leading-relaxed">
-            Phosfluorescently deploy unique intellectual capital without enterprise-after bricks & clicks synergy. Enthusiastically revolutionize intuitive.
-          </p>
+              Learn practical, real-world skills through structured courses designed to help you grow step by step. Track your progress, build projects, and gain the confidence.        </p>
           <div className="flex items-center gap-6">
+            <Link href={user ? "/Dashboard" : "/signup"}>
             <button className="bg-[#1EBBA3] text-white px-8 py-4 rounded-full font-bold text-lg hover:shadow-xl transition flex items-center gap-2">
               Start Free Trial <span className="text-xl">↗</span>
             </button>
+            </Link>
             <button className="flex items-center gap-3 font-bold text-gray-700 hover:text-[#FF7D44] transition">
               <span className="w-12 h-12 bg-[#FF7D44] rounded-full flex items-center justify-center text-white shadow-lg">▶</span>
               How it Work
