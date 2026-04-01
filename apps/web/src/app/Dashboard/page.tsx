@@ -18,6 +18,7 @@ interface Course {
 export default function Dashboard() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const ADMIN_EMAIL = "pavinfibres@gmail.com";
 
   const { data: user } = useQuery({
     queryKey: ["user"],
@@ -93,6 +94,8 @@ export default function Dashboard() {
     router.push("/");
   };
 
+  const isAdmin = user?.email === ADMIN_EMAIL;
+
   return (
     <div className="min-h-screen bg-[#FFF5F1] font-sans text-[#2D2D2D]">
       <nav className="bg-white/80 backdrop-blur-md sticky top-0 z-50 py-4">
@@ -136,19 +139,27 @@ export default function Dashboard() {
         </div>
 
         <div className="mb-12">
-          {status === null && (
-            <div className="bg-white rounded-2xl p-6 shadow-sm border-l-4 border-[#FF7D44]">
-              <h3 className="text-2xl font-bold mb-2">Want to teach?</h3>
-              <p className="text-gray-600 mb-4">
-                Apply to become an instructor and share your knowledge with thousands of learners
-              </p>
-              <Link href="/InsForm">
-                <button className="bg-[#FF7D44] hover:bg-[#e56a2e] text-white px-8 py-3 rounded-full font-bold transition shadow-md">
-                  Apply Now →
+            {isAdmin ? (
+              <Link href="/admin">
+                <button className="bg-black text-white px-8 py-3 rounded-full font-bold">
+                  Go to Admin →
                 </button>
               </Link>
-            </div>
-          )}
+            ) : status === null && (
+              <div className="bg-white rounded-2xl p-6 shadow-sm border-l-4 border-[#FF7D44]">
+                <h3 className="text-2xl font-bold mb-2">Want to teach?</h3>
+                <p className="text-gray-600 mb-4">
+                  Apply to become an instructor
+                </p>
+                <Link href="/InsForm">
+                  <button className="bg-[#FF7D44] text-white px-8 py-3 rounded-full font-bold">
+                    Apply Now →
+                  </button>
+                </Link>
+              </div>
+            )}
+
+          
 
           {status === "pending" && (
             <div className="bg-yellow-50 rounded-2xl p-6 border-l-4 border-yellow-500">
@@ -170,6 +181,14 @@ export default function Dashboard() {
                   Upload Course →
                 </button>
               </Link>
+            </div>
+          )}
+          {status === "rejected" &&(
+              <div className="bg-green-50 rounded-2xl p-6 border-l-4 border-green-500 flex justify-between items-center">
+              <div>
+                <h3 className="text-2xl font-bold text-green-900 mb-2">Instructor Request Rejected!</h3>
+                <p className="text-green-800">You can still continue as a learner</p>
+              </div>
             </div>
           )}
         </div>
