@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 
 interface Course {
   id: string;
@@ -18,6 +19,7 @@ interface Course {
 export default function Dashboard() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const [search, setSearch] = useState("");
 
   const { data: user } = useQuery({
     queryKey: ["user"],
@@ -98,29 +100,36 @@ export default function Dashboard() {
     queryFn: async () => {
       if (!userId) return false;
       const { data } = await supabase
-  .from("Admin_list")
-  .select("role")
-  .eq("id", userId)
-  .eq("role", "Admin")
-  .single();
-return !!data;
+        .from("Admin_list")
+        .select("role")
+        .eq("id", userId)
+        .eq("role", "Admin")
+        .single();
+      return !!data;
     },
     enabled: !!userId,
   });
 
+  const filteredCourses = courses.filter(
+    (course) =>
+      course.courseName.toLowerCase().includes(search.toLowerCase()) ||
+      course.description.toLowerCase().includes(search.toLowerCase()) ||
+      course.topics_covered?.toLowerCase().includes(search.toLowerCase())
+  );
+
   return (
     <div className="min-h-screen bg-[#FFF5F1] font-sans text-[#2D2D2D]">
-      <nav className="bg-white/80 backdrop-blur-md sticky top-0 z-50 py-4">
-        <div className="max-w-7xl mx-auto px-6 flex justify-between items-center">
-          <Link href="/" className="text-2xl font-black text-[#1A1A1A] tracking-tight">
+      <nav className="bg-white/80 backdrop-blur-md sticky top-0 z-50 py-3 md:py-4">
+        <div className="max-w-7xl mx-auto px-4 md:px-6 flex justify-between items-center">
+          <Link href="/" className="text-lg md:text-2xl font-black text-[#1A1A1A] tracking-tight">
             LMS<span className="text-[#FF7D44]">ZONE</span>
           </Link>
-          <div className="flex items-center gap-8 font-medium">
+          <div className="flex items-center gap-3 md:gap-8 font-medium text-xs md:text-sm">
             <Link href="/" className="hover:text-[#FF7D44] transition">Home</Link>
             <Link href="/Enrollment" className="hover:text-[#FF7D44] transition">My Courses</Link>
             <button
               onClick={handleLogout}
-              className="text-sm font-bold text-red-500 hover:text-red-700 transition"
+              className="text-xs md:text-sm font-bold text-red-500 hover:text-red-700 transition"
             >
               Logout
             </button>
@@ -128,50 +137,46 @@ return !!data;
         </div>
       </nav>
 
-      <section className="max-w-7xl mx-auto px-6 py-12">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 mb-16">
+      <section className="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-12">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 md:gap-8 mb-8 md:mb-16">
           <div>
-            <h1 className="text-5xl font-black text-[#1A1A1A] mb-2">
+            <h1 className="text-3xl md:text-4xl lg:text-5xl font-black text-[#1A1A1A] mb-2">
               Hey, {user?.user_metadata?.username || "Learner"}! 👋
             </h1>
-            <p className="text-gray-600 text-lg">
+            <p className="text-gray-600 text-sm md:text-base lg:text-lg">
               Let's continue learning and grow your skills
             </p>
           </div>
-          <div className="flex gap-6">
-            <div className="bg-white rounded-2xl p-6 shadow-sm text-center">
-              <p className="text-sm text-gray-600 mb-2">Enrolled</p>
-              <p className="text-4xl font-black text-[#1EBBA3]">{enrolled.length}</p>
+          <div className="flex gap-3 md:gap-6 w-full md:w-auto">
+            <div className="flex-1 md:flex-none bg-white rounded-2xl p-4 md:p-6 shadow-sm text-center">
+              <p className="text-xs md:text-sm text-gray-600 mb-2">Enrolled</p>
+              <p className="text-2xl md:text-4xl font-black text-[#1EBBA3]">{enrolled.length}</p>
             </div>
-            <div className="bg-white rounded-2xl p-6 shadow-sm text-center">
-              <p className="text-sm text-gray-600 mb-2">Available</p>
-              <p className="text-4xl font-black text-[#FF7D44]">{courses.length}</p>
+            <div className="flex-1 md:flex-none bg-white rounded-2xl p-4 md:p-6 shadow-sm text-center">
+              <p className="text-xs md:text-sm text-gray-600 mb-2">Available</p>
+              <p className="text-2xl md:text-4xl font-black text-[#FF7D44]">{courses.length}</p>
             </div>
           </div>
         </div>
 
         <div className="mb-12">
-            {isAdmin ? (
-              <Link href="/admin">
-                <button className="bg-black text-white px-8 py-3 rounded-full font-bold">
-                  Go to Admin →
+          {isAdmin ? (
+            <Link href="/admin">
+              <button className="bg-black text-white px-8 py-3 rounded-full font-bold">
+                Go to Admin →
+              </button>
+            </Link>
+          ) : status === null && (
+            <div className="bg-white rounded-2xl p-6 shadow-sm border-l-4 border-[#FF7D44]">
+              <h3 className="text-2xl font-bold mb-2">Want to teach?</h3>
+              <p className="text-gray-600 mb-4">Apply to become an instructor</p>
+              <Link href="/InsForm">
+                <button className="bg-[#FF7D44] text-white px-8 py-3 rounded-full font-bold">
+                  Apply Now →
                 </button>
               </Link>
-            ) : status === null && (
-              <div className="bg-white rounded-2xl p-6 shadow-sm border-l-4 border-[#FF7D44]">
-                <h3 className="text-2xl font-bold mb-2">Want to teach?</h3>
-                <p className="text-gray-600 mb-4">
-                  Apply to become an instructor
-                </p>
-                <Link href="/InsForm">
-                  <button className="bg-[#FF7D44] text-white px-8 py-3 rounded-full font-bold">
-                    Apply Now →
-                  </button>
-                </Link>
-              </div>
-            )}
-
-          
+            </div>
+          )}
 
           {status === "pending" && (
             <div className="bg-yellow-50 rounded-2xl p-6 border-l-4 border-yellow-500">
@@ -183,20 +188,28 @@ return !!data;
           )}
 
           {status === "APPROVED!" && (
-            <div className="bg-green-50 rounded-2xl p-6 border-l-4 border-green-500 flex justify-between items-center">
+            <div className="bg-green-50 rounded-2xl p-6 border-l-4 border-green-500 flex justify-between items-center flex-col md:flex-row gap-6">
               <div>
                 <h3 className="text-2xl font-bold text-green-900 mb-2">Instructor Approved! 🎉</h3>
                 <p className="text-green-800">You can now upload and manage your own courses</p>
               </div>
-              <Link href="/uploadCourse">
-                <button className="bg-green-500 hover:bg-green-600 text-white px-8 py-3 rounded-full font-bold transition shadow-md whitespace-nowrap">
-                  Upload Course →
-                </button>
-              </Link>
+              <div className="flex flex-col gap-4">
+                <Link href="/uploadCourse">
+                  <button className="bg-green-500 hover:bg-green-600 text-white px-2 py-3 rounded-full font-bold transition shadow-md whitespace-nowrap lg:px-6">
+                    Upload Course →
+                  </button>
+                </Link>
+                <Link href="/Ins_Dashboard">
+                  <button className="bg-orange-500 hover:bg-orange-600 text-white px-2 py-3 rounded-full font-bold transition shadow-md whitespace-nowrap lg:px-6">
+                    Uploaded Courses →
+                  </button>
+                </Link>
+              </div>
             </div>
           )}
-          {status === "rejected" &&(
-              <div className="bg-green-50 rounded-2xl p-6 border-l-4 border-green-500 flex justify-between items-center">
+
+          {status === "rejected" && (
+            <div className="bg-green-50 rounded-2xl p-6 border-l-4 border-green-500 flex justify-between items-center">
               <div>
                 <h3 className="text-2xl font-bold text-green-900 mb-2">Instructor Request Rejected!</h3>
                 <p className="text-green-800">You can still continue as a learner</p>
@@ -212,6 +225,13 @@ return !!data;
             </span>
             <h2 className="text-4xl font-black mt-4">Explore & Enroll</h2>
             <p className="text-gray-600 mt-2">Browse our complete catalog and start learning today</p>
+            <input
+              type="text"
+              placeholder="Search courses...  🔍"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="mt-4 w-full md:w-1/2 px-5 py-3 rounded-full border border-gray-300 bg-gray-100 text-[#1A1A1A] placeholder-gray-400 focus:ring-2 focus:ring-[#1EBBA3] transition"
+            />
           </div>
 
           {isLoading ? (
@@ -219,13 +239,15 @@ return !!data;
               <div className="inline-block animate-spin text-4xl">⏳</div>
               <p className="text-gray-400 mt-4">Loading courses...</p>
             </div>
-          ) : courses.length === 0 ? (
+          ) : filteredCourses.length === 0 ? (
             <div className="text-center py-20">
-              <p className="text-gray-400 text-lg">No courses available yet. Check back soon!</p>
+              <p className="text-gray-400 text-lg">
+                {search ? `No courses found for "${search}"` : "No courses available yet. Check back soon!"}
+              </p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {courses.map((course) => (
+              {filteredCourses.map((course) => (
                 <div
                   key={course.id}
                   className="bg-white rounded-[2rem] overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-300 group"

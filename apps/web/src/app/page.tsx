@@ -151,19 +151,19 @@ export default function Home() {
     <div className="min-h-screen bg-[#FFF5F1] font-sans text-[#2D2D2D]">
       <nav className="bg-white/80 backdrop-blur-md sticky top-0 z-50 py-4">
         <div className="max-w-7xl mx-auto px-6 flex justify-between items-center">
-          <div className="text-2xl font-black text-[#1A1A1A] tracking-tight">
+          <div className="text-2xl font-black text-[#1A1A1A] tracking-tight mr-4 lg:mr-0">
             LMS<span className="text-[#FF7D44]">ZONE</span>
           </div>
-          <div className="flex items-center gap-8 font-medium">
+          <div className="flex items-center gap-2 font-medium lg:gap-8">
             <Link href="#courses" className="hover:text-[#FF7D44] transition">Courses</Link>
             {user ? (
-              <button onClick={handleLogout} className="text-sm font-bold text-red-500 hover:text-red-700 transition">Logout</button>
+              <button onClick={handleLogout} className="text-sm font-bold  text-red-500 hover:text-red-700 transition">Logout</button>
             ) : (
-              <Link href="/login" className="hover:text-[#FF7D44]">Login</Link>
+              <Link href="/login" className="hover:text-[#FF7D44]  ">Login</Link>
             )}
             <Link href={user ? "/Dashboard" : "/signup"}>
-              <button className="bg-[#1EBBA3] text-white px-6 py-2.5 rounded-full font-bold hover:bg-[#189a86] transition shadow-md">
-                {user ? "Dashboard" : "Sign Up"}
+              <button className="bg-[#1EBBA3] text-white px-2 py-2.5 lg:px-6 lg:py-3 text-sm rounded-full font-bold hover:bg-[#189a86] transition shadow-md">
+                {user ? "Dashboard" : "SignUp"}
               </button>
             </Link>
           </div>
