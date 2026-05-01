@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { FaFacebook, FaInstagram } from "react-icons/fa";
+import { FaXTwitter } from "react-icons/fa6";
 
 interface Course {
   id: string;
@@ -321,9 +323,9 @@ export default function Home() {
                 Empowering learners worldwide with high-quality education and cutting-edge technology.
               </p>
               <div className="flex gap-3">
-                <a href="#" className="bg-[#FF7D44] hover:bg-[#e56a2e] p-3 rounded-full transition">📱</a>
-                <a href="#" className="bg-[#FF7D44] hover:bg-[#e56a2e] p-3 rounded-full transition">🐦</a>
-                <a href="#" className="bg-[#FF7D44] hover:bg-[#e56a2e] p-3 rounded-full transition">💼</a>
+                <a href="#" className="bg-[#FF7D44] hover:bg-[#e56a2e] p-3 rounded-full transition"><FaFacebook /></a>
+                <a href="#" className="bg-[#FF7D44] hover:bg-[#e56a2e] p-3 rounded-full transition"><FaXTwitter /></a>
+                <a href="#" className="bg-[#FF7D44] hover:bg-[#e56a2e] p-3 rounded-full transition"><FaInstagram /></a>
               </div>
             </div>
 
