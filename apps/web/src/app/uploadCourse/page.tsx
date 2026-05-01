@@ -18,6 +18,7 @@ export default function UploadCourse() {
   const [thumbnailPreview, setThumbnailPreview] = useState("");
   const [lessons, setLessons] = useState([{ title: "", content: "" }]);
   const [loading, setLoading] = useState(false);
+  const [videoFiles, setVideoFiles] = useState<(File | null)[]>([null]);
 
   useEffect(() => {
     const getUser = async () => {
@@ -45,6 +46,16 @@ export default function UploadCourse() {
       reader.readAsDataURL(file);
     }
   };
+
+    const handleVideoUpload = (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
+    if (e.target.files?.[0]) {
+      const file = e.target.files[0];
+      const updatedVideos = [...videoFiles];
+      updatedVideos[index] = file;
+      setVideoFiles(updatedVideos);
+    } 
+  };
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,10 +93,10 @@ export default function UploadCourse() {
       }
 
       const filePath = `thumbnails/${user.id}/${Date.now()}-${thumbnailFile.name}`;
-
       const { error: uploadError } = await supabase.storage
         .from("Thumbnail-bucket")
         .upload(filePath, thumbnailFile);
+
 
       if (uploadError) {
         alert(uploadError.message);
@@ -97,6 +108,37 @@ export default function UploadCourse() {
         .getPublicUrl(filePath);
 
       const thumbnailUrl = publicUrlData.publicUrl;
+
+      const videoUrls: (string | null)[] = [];
+      
+      for (let i = 0; i < videoFiles.length; i++) {
+          if (!videoFiles[i]) {
+            videoUrls.push(null);
+            continue;
+          }
+
+          const path = `videos/${user.id}/${Date.now()}-${i}.mp4`;
+          const { error: videoUploadError } = await supabase.storage
+            .from("Lesson videos")
+            .upload(path, videoFiles[i] as File);
+
+          const { data } = supabase.storage
+            .from("Lesson videos")
+            .getPublicUrl(path);
+
+          const videoUrl = data.publicUrl;
+          
+          if (videoUploadError) {
+            alert("Video upload failed: " + videoUploadError.message);
+            return;
+          }
+          
+          const { data: videoUrlData } = supabase.storage
+            .from("Lesson videos")
+            .getPublicUrl(path);
+          
+          videoUrls.push(videoUrlData.publicUrl);
+        }
 
       const { data, error } = await supabase
         .from("courses")
@@ -145,6 +187,7 @@ export default function UploadCourse() {
             course_id: courseId,
             order_index: index,
             user_id: user.id,
+            video_url: videoUrls[index] || null,
           }))
         );
 
@@ -172,11 +215,12 @@ export default function UploadCourse() {
   type Lesson = {
     title: string;
     content: string;
+    video_url?: string;
   };
 
   const handleLessonChange = (
     index: number,
-    field: keyof Lesson,
+    field: "title" | "content",
     value: string
   ) => {
     const updatedLessons = [...lessons];
@@ -186,27 +230,30 @@ export default function UploadCourse() {
 
   const addLesson = () => {
     setLessons([...lessons, { title: "", content: "" }]);
+    setVideoFiles([...videoFiles, null]);
   };
 
   const removeLesson = (index: number) => {
     const updated = lessons.filter((_, i) => i !== index);
+    const updatedVideos = videoFiles.filter((_, i) => i !== index);
     setLessons(updated);
+    setVideoFiles(updatedVideos);
   };
 
   return (
     <div className="min-h-screen bg-[#FFF5F1] font-sans text-[#2D2D2D]">
-      <nav className="bg-white/80 backdrop-blur-md sticky top-0 z-50 py-4">
-        <div className="max-w-7xl mx-auto px-6 flex justify-between items-center">
-          <Link href="/" className="text-2xl font-black text-[#1A1A1A] tracking-tight">
+      <nav className="bg-white/80 backdrop-blur-md sticky top-0 z-50 py-3 md:py-4">
+        <div className="max-w-7xl mx-auto px-4 md:px-6 flex justify-between items-center">
+          <Link href="/" className="text-xl md:text-2xl font-black text-[#1A1A1A] tracking-tight">
             LMS<span className="text-[#FF7D44]">ZONE</span>
           </Link>
-          <div className="flex items-center gap-8 font-medium">
-            <Link href="/Dashboard" className="hover:text-[#FF7D44] transition">
+          <div className="flex items-center gap-3 md:gap-8 font-medium">
+            <Link href="/Dashboard" className="text-sm md:text-base hover:text-[#FF7D44] transition">
               Dashboard
             </Link>
             <button
               onClick={() => supabase.auth.signOut().then(() => router.push("/"))}
-              className="text-sm font-bold text-red-500 hover:text-red-700 transition"
+              className="text-xs md:text-sm font-bold text-red-500 hover:text-red-700 transition"
             >
               Logout
             </button>
@@ -214,12 +261,12 @@ export default function UploadCourse() {
         </div>
       </nav>
 
-      <div className="max-w-4xl mx-auto px-6 py-12">
-        <div className="bg-white rounded-[2rem] p-8 shadow-sm">
-          <h1 className="text-4xl font-black text-[#1A1A1A] mb-2">
+      <div className="max-w-4xl mx-auto px-4 md:px-6 py-6 md:py-12">
+        <div className="bg-white rounded-[2rem] p-4 md:p-8 shadow-sm">
+          <h1 className="text-2xl md:text-4xl font-black text-[#1A1A1A] mb-2">
             Upload Your Course
           </h1>
-          <p className="text-gray-500 mb-8">
+          <p className="text-sm md:text-base text-gray-500 mb-6 md:mb-8">
             Create and publish your first course to start earning
           </p>
 
@@ -288,35 +335,35 @@ export default function UploadCourse() {
               <label className="block text-sm font-bold text-[#1A1A1A] mb-2">
                 Course Thumbnail
               </label>
-              <div className="flex gap-4">
+              <div className="flex flex-col md:flex-row gap-3 md:gap-4">
                 <input
                   type="file"
                   accept="image/*"
                   onChange={handleThumbnailChange}
                   required
-                  className="flex-1 px-5 py-3 rounded-full bg-[#FDF0E9] border-none focus:ring-2 focus:ring-[#1EBBA3] outline-none text-[#1A1A1A] file:bg-[#1EBBA3] file:text-white file:border-none file:px-4 file:py-2 file:rounded-full file:font-bold file:cursor-pointer"
+                  className="flex-1 px-4 md:px-5 py-2 md:py-3 rounded-full bg-[#FDF0E9] border-none focus:ring-2 focus:ring-[#1EBBA3] outline-none text-[#1A1A1A] text-sm file:bg-[#1EBBA3] file:text-white file:border-none file:px-3 file:py-1 file:rounded-full file:font-bold file:cursor-pointer"
                 />
                 {thumbnailPreview && (
-                  <div className="w-20 h-20 rounded-2xl overflow-hidden shadow-sm">
+                  <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl overflow-hidden shadow-sm shrink-0">
                     <img src={thumbnailPreview} alt="Preview" className="w-full h-full object-cover" />
                   </div>
                 )}
               </div>
             </div>
 
-            <div className="border-t border-gray-100 pt-8">
-              <h3 className="text-2xl font-bold text-[#1A1A1A] mb-6">Lessons</h3>
+            <div className="border-t border-gray-100 pt-6 md:pt-8">
+              <h3 className="text-xl md:text-2xl font-bold text-[#1A1A1A] mb-4 md:mb-6">Lessons</h3>
 
               <div className="space-y-4">
                 {lessons.map((lesson, index) => (
-                  <div key={index} className="bg-gray-50 rounded-2xl p-6">
-                    <div className="flex justify-between items-center mb-4">
-                      <h4 className="font-bold text-[#1A1A1A]">Lesson {index + 1}</h4>
+                  <div key={index} className="bg-gray-50 rounded-2xl p-4 md:p-6">
+                    <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-4 gap-3 md:gap-0">
+                      <h4 className="font-bold text-[#1A1A1A] text-sm md:text-base">Lesson {index + 1}</h4>
                       {lessons.length > 1 && (
                         <button
                           type="button"
                           onClick={() => removeLesson(index)}
-                          className="text-red-500 hover:text-red-700 font-bold transition"
+                          className="text-red-500 hover:text-red-700 font-bold transition text-sm md:text-base w-full md:w-auto text-left md:text-right"
                         >
                           Remove
                         </button>
@@ -332,7 +379,7 @@ export default function UploadCourse() {
                           handleLessonChange(index, "title", e.target.value)
                         }
                         required
-                        className="w-full px-5 py-3 rounded-full bg-white border-none focus:ring-2 focus:ring-[#1EBBA3] outline-none text-[#1A1A1A] placeholder-gray-400"
+                        className="w-full px-4 md:px-5 py-2 md:py-3 rounded-full bg-white border-none focus:ring-2 focus:ring-[#1EBBA3] outline-none text-[#1A1A1A] placeholder-gray-400 text-sm md:text-base"
                       />
 
                       <textarea
@@ -343,8 +390,20 @@ export default function UploadCourse() {
                         }
                         required
                         rows={3}
-                        className="w-full px-5 py-3 rounded-2xl bg-white border-none focus:ring-2 focus:ring-[#1EBBA3] outline-none text-[#1A1A1A] placeholder-gray-400 resize-none"
+                        className="w-full px-4 md:px-5 py-2 md:py-3 rounded-2xl bg-white border-none focus:ring-2 focus:ring-[#1EBBA3] outline-none text-[#1A1A1A] placeholder-gray-400 resize-none text-sm md:text-base"
                       />
+                      <div>
+                        <label className="block text-xs font-bold text-gray-600 mb-2">Video Upload (Optional)</label>
+                        <input
+                          type="file"
+                          accept="video/*"
+                          onChange={(e) => handleVideoUpload(e, index)}
+                          className="w-full px-4 md:px-5 py-2 md:py-3 rounded-full bg-white border-2 border-gray-200 focus:border-[#1EBBA3] text-[#1A1A1A] text-sm cursor-pointer file:bg-[#1EBBA3] file:text-white file:border-none file:px-3 file:py-1 file:rounded-full file:font-bold file:cursor-pointer"
+                        />
+                        {videoFiles[index] && (
+                          <p className="text-xs md:text-sm text-green-600 font-bold mt-2 truncate">✓ Video selected: {videoFiles[index]?.name}</p>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -353,7 +412,7 @@ export default function UploadCourse() {
               <button
                 type="button"
                 onClick={addLesson}
-                className="mt-4 w-full bg-gray-200 hover:bg-gray-300 text-[#1A1A1A] px-6 py-3 rounded-full font-bold transition"
+                className="mt-4 w-full bg-gray-200 hover:bg-gray-300 text-[#1A1A1A] px-6 py-2 md:py-3 rounded-full font-bold transition text-sm md:text-base"
               >
                 + Add Lesson
               </button>
@@ -362,14 +421,14 @@ export default function UploadCourse() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-[#1EBBA3] hover:bg-[#189a86] disabled:bg-gray-400 text-white px-6 py-4 rounded-full font-bold transition mt-8"
+              className="w-full bg-[#1EBBA3] hover:bg-[#189a86] disabled:bg-gray-400 text-white px-6 py-3 md:py-4 rounded-full font-bold transition mt-6 md:mt-8 text-sm md:text-base"
             >
               {loading ? "Publishing Course..." : "Publish Course"}
             </button>
           </form>
 
-          <div className="mt-8 pt-8 border-t border-gray-100 text-center">
-            <Link href="/Dashboard" className="text-gray-500 hover:text-[#FF7D44] transition font-medium">
+          <div className="mt-6 md:mt-8 pt-6 md:pt-8 border-t border-gray-100 text-center">
+            <Link href="/Dashboard" className="text-gray-500 hover:text-[#FF7D44] transition font-medium text-sm md:text-base">
               Back to Dashboard
             </Link>
           </div>

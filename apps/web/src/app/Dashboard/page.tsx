@@ -18,7 +18,6 @@ interface Course {
 export default function Dashboard() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const ADMIN_EMAIL = "pavinfibres@gmail.com";
 
   const { data: user } = useQuery({
     queryKey: ["user"],
@@ -94,7 +93,20 @@ export default function Dashboard() {
     router.push("/");
   };
 
-  const isAdmin = user?.email === ADMIN_EMAIL;
+  const { data: isAdmin } = useQuery({
+    queryKey: ["isAdmin", userId],
+    queryFn: async () => {
+      if (!userId) return false;
+      const { data } = await supabase
+  .from("Admin_list")
+  .select("role")
+  .eq("id", userId)
+  .eq("role", "Admin")
+  .single();
+return !!data;
+    },
+    enabled: !!userId,
+  });
 
   return (
     <div className="min-h-screen bg-[#FFF5F1] font-sans text-[#2D2D2D]">

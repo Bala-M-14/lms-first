@@ -11,6 +11,7 @@ type Lesson = {
   title: string;
   content: string;
   course_id: string;
+  video_url?: string;
 };
 
 type Course = {
@@ -189,6 +190,19 @@ export default function LessonPage() {
           </div>
 
           <div className="w-full h-1 bg-linear-to-r from-[#1EBBA3] to-[#FF7D44] rounded-full mb-8" />
+
+          {lesson?.video_url && (
+            <div className="mb-8">
+              <video
+                controls
+                className="w-full rounded-2xl bg-black shadow-lg"
+                style={{ maxHeight: "500px" }}
+              >
+                <source src={lesson.video_url} type="video/mp4" />
+                Your browser does not support the video tag.
+              </video>
+            </div>
+          )}
 
           <div className="prose prose-sm max-w-none mb-8">
             <div className="text-gray-600 leading-relaxed whitespace-pre-wrap text-base">
